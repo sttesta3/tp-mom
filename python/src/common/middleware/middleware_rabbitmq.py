@@ -12,22 +12,26 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.channel = self.connection.channel()
         self.queue_name = queue_name
         self.queue = self.channel.queue_declare(queue=self.queue_name)
-        pass
 
     def start_consuming(self, on_message_callback):
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=on_message_callback)
+        def callback(ch, method, properties, body):
+            def ack():
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            def nack():
+                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            on_message_callback(message=body,ack=ack,nack=nack)
+
+        self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
         self.channel.start_consuming()
-        pass
 
     def stop_consuming(self):
         self.channel.stop_consuming()
-        pass    
 
     def send(self, message):
         try: 
             self.channel.basic_publish(
                 exchange='',            # TODO: Default exchange y routing key hello ?
-                routing_key='hello',    
+                routing_key=self.queue.method.queue,    
                 body=message
             )
         except pika.exceptions.ChannelClosed(): # https://pika.readthedocs.io/en/stable/modules/exceptions.html
