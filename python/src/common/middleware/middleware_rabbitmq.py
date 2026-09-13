@@ -49,12 +49,12 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareMessageError()
 
     def close(self):
-        if self.connection.is_open:
-            try:
-                self.connection.close()
-            except Exception as e:
-                print(f"Error {e}")
-                raise MessageMiddlewareCloseError()
+        # No debe revisarse connection.is_open ya que close lo revisa y raise ConnectionWrongStateError
+        try:
+            self.connection.close()
+        except Exception as e:
+            print(f"Error {e}")
+            raise MessageMiddlewareCloseError()
 
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     def __init__(self, host, exchange_name, routing_keys):
@@ -107,9 +107,9 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             raise MessageMiddlewareMessageError()
 
     def close(self):
-        if self.connection.is_open:
-            try:
-                self.connection.close()
-            except Exception as e:
-                print(f"Error {e}")
-                raise MessageMiddlewareCloseError()
+        # No debe revisarse connection.is_open ya que close lo revisa y raise ConnectionWrongStateError
+        try:
+            self.connection.close()
+        except Exception as e:
+            print(f"Error {e}")
+            raise MessageMiddlewareCloseError()
