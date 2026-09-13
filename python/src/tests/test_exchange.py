@@ -141,6 +141,7 @@ def test_init_and_close():
 #  DIRECT MESSAGING TESTS
 # -----------------------------------------------------------------------------
 def test_direct_messaging_one_consumer_one_message():
+	print("test_direct_messaging_one_consumer_one_message")
 	_test_exchange({
 		"consumer_1": ["route_1"]
 		}, {
