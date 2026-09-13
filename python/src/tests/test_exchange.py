@@ -83,7 +83,7 @@ def _wait_for_queues(routing_keys_by_consumers, timeout=6, poll_interval=0.1):
 
     raise TimeoutError(
         f"Timed out waiting for bindings on exchange '{TEST_EXCHANGE_NAME}'. "
-        f"Expected: {bindings_per_key}"
+        f"Expected: {bindings_per_key}\nGot: {actual_bindings}"
     )
 
 def _message_set_consumer(message_set, messages_before_close, routing_keys):

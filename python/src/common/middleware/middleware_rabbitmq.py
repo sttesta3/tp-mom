@@ -11,7 +11,6 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
         self.channel = self.connection.channel()
         self.queue = self.channel.queue_declare(queue=queue_name)
-        pass
 
     def start_consuming(self, on_message_callback):
         def callback(ch, method, properties, body):
@@ -48,20 +47,20 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareCloseError()
 
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
-    
     def __init__(self, host, exchange_name, routing_keys):
+        print(f"exchange {exchange_name}\nrk: {routing_keys}")
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
         self.channel = self.connection.channel()
+
+        # Exchange durable porque tiene que compartirse entre todos 
         self.exchange_name = exchange_name
         self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='direct', durable=True)
 
-        # TODO: no deberian ser dict[routing_key] = [queue] ? queue='' esta bien ?
-        # https://www.rabbitmq.com/tutorials/tutorial-four-python
-        self.queues = []
-        for key in routing_keys: 
-            self.queues.append(self.channel.queue_declare(queue=key))
-            self.channel.queue_bind(exchange=exchange_name, queue=key, routing_key=key)
-        print("[exchange] INIT FIN")
+        # Cola exclusiva bindeada a todas las llaves de ruteo 
+        self.queue = self.channel.queue_declare(queue='', exclusive=True)
+        self.routing_keys = routing_keys
+        for key in self.routing_keys: 
+            self.channel.queue_bind(exchange=exchange_name, queue=self.queue.method.queue, routing_key=key)
 
     def start_consuming(self, on_message_callback):
         def callback(ch, method, properties, body):
@@ -71,20 +70,15 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
             on_message_callback(message=body,ack=ack,nack=nack)
 
-        for queue in self.queues:
-            self.channel.basic_consume(queue=queue.method.queue, on_message_callback=callback, auto_ack=False)
-        print("[exchange] START CONSUMING")
+        self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
         self.channel.start_consuming()
 
     def stop_consuming(self):
-        print("[exchange] STOP CONSUMING")
         self.channel.stop_consuming()
 
     def send(self, message):
-        print(f"[exchange] SEND START")
-        for key in self.queues:
-            print(f"[exchange] SEND {key} {message}")
-            self.channel.basic_publish(exchange=self.exchange_name, routing_key=key.method.queue, body=message)
+        for key in self.routing_keys:
+            self.channel.basic_publish(exchange=self.exchange_name, routing_key=key, body=message)
 
     def close(self):
         self.connection.close()
