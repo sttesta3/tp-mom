@@ -20,11 +20,20 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
             on_message_callback(message=body,ack=ack,nack=nack)
 
-        self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
-        self.channel.start_consuming()
+        try: 
+            self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
+            self.channel.start_consuming()
+        except pika.exceptions.ChannelClosed:
+            raise MessageMiddlewareDisconnectedError()
+        except Exception:
+            # pika.exceptions.ReentrancyError cae bajo esta Excepcion
+            raise MessageMiddlewareMessageError()
 
     def stop_consuming(self):
-        self.channel.stop_consuming()
+        try:
+            self.channel.stop_consuming()
+        except Exception:
+            raise MessageMiddlewareDisconnectedError()
 
     def send(self, message):
         try: 
@@ -35,14 +44,15 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             )
         except pika.exceptions.ChannelClosed(): # https://pika.readthedocs.io/en/stable/modules/exceptions.html
             raise MessageMiddlewareDisconnectedError()
-        except Exception() as e:
+        except Exception as e:
             print("Error ", e)
             raise MessageMiddlewareMessageError()
 
     def close(self):
+        # No debe revisarse connection.is_open ya que close lo revisa y raise ConnectionWrongStateError
         try:
             self.connection.close()
-        except Exception() as e:
+        except Exception as e:
             print(f"Error {e}")
             raise MessageMiddlewareCloseError()
 
@@ -70,15 +80,36 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
             on_message_callback(message=body,ack=ack,nack=nack)
 
-        self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
-        self.channel.start_consuming()
+
+        try: 
+            self.channel.basic_consume(queue=self.queue.method.queue, on_message_callback=callback, auto_ack=False)
+            self.channel.start_consuming()
+        except pika.exceptions.ChannelClosed:
+            raise MessageMiddlewareDisconnectedError()
+        except Exception:
+            # pika.exceptions.ReentrancyError cae bajo esta Excepcion
+            raise MessageMiddlewareMessageError()
 
     def stop_consuming(self):
-        self.channel.stop_consuming()
+        try:
+            self.channel.stop_consuming()
+        except Exception:
+            raise MessageMiddlewareDisconnectedError()
 
     def send(self, message):
-        for key in self.routing_keys:
-            self.channel.basic_publish(exchange=self.exchange_name, routing_key=key, body=message)
+        try: 
+            for key in self.routing_keys:
+                self.channel.basic_publish(exchange=self.exchange_name, routing_key=key, body=message)
+        except pika.exceptions.ChannelClosed(): # https://pika.readthedocs.io/en/stable/modules/exceptions.html
+            raise MessageMiddlewareDisconnectedError()
+        except Exception as e:
+            print("Error ", e)
+            raise MessageMiddlewareMessageError()
 
     def close(self):
-        self.connection.close()
+        # No debe revisarse connection.is_open ya que close lo revisa y raise ConnectionWrongStateError
+        try:
+            self.connection.close()
+        except Exception as e:
+            print(f"Error {e}")
+            raise MessageMiddlewareCloseError()
