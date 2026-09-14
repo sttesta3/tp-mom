@@ -3,7 +3,7 @@ import random
 import string
 from .middleware import MessageMiddlewareCloseError, MessageMiddlewareDisconnectedError, MessageMiddlewareMessageError, MessageMiddlewareQueue, MessageMiddlewareExchange
 
-AMQP_NETWORK_EXCEPTIONS = (pika.exceptions.AMQPConnectionError,pika.exceptions.AMQPChannelError, pika.exceptions.StreamLostError)
+AMQP_NETWORK_EXCEPTIONS = (pika.exceptions.AMQPConnectionError,pika.exceptions.AMQPChannelError, pika.exceptions.StreamLostError, ConnectionResetError)
 
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
